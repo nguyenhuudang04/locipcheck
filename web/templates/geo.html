@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IP Geo Checker - SOC IOC Enrichment</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .geo-container { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
+    .geo-header { margin-bottom: 24px; }
+    .geo-header h1 { font-size: 24px; color: #fff; margin-bottom: 8px; }
+    .geo-header p { color: var(--text-m); font-size: 14px; }
+    .geo-input-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+    .geo-textarea { width: 100%; height: 150px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 12px; color: var(--text-l); font-family: 'JetBrains Mono', monospace; font-size: 13px; resize: vertical; margin-bottom: 16px; box-sizing: border-box; }
+    .geo-textarea:focus { outline: none; border-color: var(--primary); }
+    .geo-controls { display: flex; gap: 12px; align-items: center; }
+    .geo-btn { padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px; border: none; transition: all 0.2s; }
+    .geo-btn-primary { background: var(--primary); color: #fff; }
+    .geo-btn-primary:hover { background: var(--primary-h); }
+    .geo-btn-secondary { background: var(--bg3); color: var(--text-l); border: 1px solid var(--border); }
+    .geo-btn-secondary:hover { background: var(--bg-hover); }
+    .geo-status { margin-left: auto; font-size: 14px; color: var(--text-m); }
+    .geo-results-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .geo-table-wrap { overflow-x: auto; }
+    .geo-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+    .geo-table th, .geo-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+    .geo-table th { background: var(--bg3); color: var(--text-m); font-weight: 500; }
+    .geo-table tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
+    .geo-tag { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; display: inline-block; }
+    .geo-tag-foreign { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+    .geo-tag-domestic { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; }
+    .geo-tag-private { background: rgba(245, 158, 11, 0.15); color: #fcd34d; }
+    .geo-tag-invalid { background: rgba(100, 116, 139, 0.15); color: #94a3b8; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-brand" style="cursor:pointer" onclick="window.location.href='/'">
+    <div class="brand-icon">
+      <svg viewBox="0 0 32 32" fill="none">
+        <polygon points="4,4 20,4 28,16 20,28 4,28 12,16" fill="none" stroke="#3b82f6" stroke-width="2.5"/>
+        <polygon points="10,10 20,10 25,16 20,22 10,22 15,16" fill="#3b82f6" opacity="0.3"/>
+        <line x1="15" y1="10" x2="21" y2="16" stroke="#60a5fa" stroke-width="2"/>
+        <line x1="21" y1="16" x2="15" y2="22" stroke="#60a5fa" stroke-width="2"/>
+      </svg>
+    </div>
+    <span class="brand-name">SOC<span class="brand-accent">IOC</span></span>
+  </div>
+  <div class="nav-right" style="display:flex;gap:20px;align-items:center;">
+    <a href="/" style="color:var(--text-m);text-decoration:none;font-size:14px;font-weight:500;">Enrichment</a>
+    <a href="/geo" style="color:var(--primary);text-decoration:none;font-size:14px;font-weight:600;">IP Geo Checker</a>
+    <div class="nav-badge"><span class="dot"></span><span>Read-only mode</span></div>
+  </div>
+</nav>
+
+<div class="geo-container">
+  <div class="geo-header">
+    <h1>IP Geo Checker</h1>
+    <p>Kiểm tra nhanh danh sách IP (Phân loại: Nội bộ, Việt Nam, Nước Ngoài) hỗ trợ điều tra truy cập bất thường.</p>
+  </div>
+  
+  <div class="geo-input-card">
+    <!-- Zone kéo thả / paste ảnh -->
+    <div id="dropZone" style="
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+      margin-bottom: 14px;
+      text-align: center;
+      color: var(--text-m);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--bg3);
+      position: relative;
+    " onclick="document.getElementById('fileInput').click()"
+       ondragover="onDragOver(event)"
+       ondragleave="onDragLeave(event)"
+       ondrop="onDrop(event)">
+      <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="onFileSelected(event)">
+      <div id="dropZoneIdle">
+        <svg viewBox="0 0 24 24" fill="none" width="28" height="28" style="margin-bottom:8px;opacity:0.5">
+          <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M3 15l5-5 4 4 3-3 6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
+        </svg>
+        <div style="font-weight:500;margin-bottom:4px;color:var(--text-l)">
+          Kéo thả ảnh vào đây &nbsp;|&nbsp;
+          <span style="color:var(--primary);text-decoration:underline;cursor:pointer">Chọn file ảnh</span>
+          &nbsp;|&nbsp; Ctrl+V để dán ảnh
+        </div>
+        <div style="font-size:12px;opacity:0.6">Hỗ trợ PNG, JPG, BMP, WebP — OCR tự động trích xuất IP từ ảnh</div>
+      </div>
+      <!-- Preview ảnh khi đã chọn -->
+      <div id="dropZonePreview" style="display:none">
+        <img id="previewImg" style="max-height:200px;max-width:100%;border-radius:6px;object-fit:contain;display:block;margin:0 auto 10px">
+        <div style="display:flex;gap:8px;justify-content:center;align-items:center;">
+          <span id="ocrProgressText" style="font-size:13px;color:var(--primary);font-weight:500"></span>
+          <button class="geo-btn geo-btn-secondary" style="padding:4px 10px;font-size:12px" onclick="event.stopPropagation();clearImage()">Xóa ảnh</button>
+        </div>
+      </div>
+      <!-- Progress bar OCR -->
+      <div id="ocrProgressBar" style="display:none;margin-top:10px;height:4px;background:var(--border);border-radius:2px;overflow:hidden">
+        <div id="ocrProgressFill" style="height:100%;background:var(--primary);width:0%;transition:width 0.3s"></div>
+      </div>
+    </div>
+
+    <textarea class="geo-textarea" id="ipsInput" placeholder="Nhập danh sách IP (mỗi dòng 1 IP hoặc phân cách bởi dấu phẩy/khoảng trắng)
+
+Ví dụ:
+8.8.8.8
+1.1.1.1
+113.161.72.1
+192.168.1.1"></textarea>
+    
+    <div class="geo-controls">
+      <button class="geo-btn geo-btn-primary" id="btnCheck" onclick="checkIps()">
+        <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M4 10h12M10 4l6 6-6 6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Kiểm tra
+      </button>
+      <button class="geo-btn geo-btn-secondary" onclick="clearResults()">Xóa kết quả</button>
+      <button class="geo-btn geo-btn-secondary" onclick="copyIpsList()">
+        <svg viewBox="0 0 16 16" fill="none" width="14" height="14"><rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4 11H3a1 1 0 01-1-1V3a1 1 0 011-1h7a1 1 0 011 1v1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Copy list IP
+      </button>
+      <button class="geo-btn geo-btn-secondary" onclick="exportCsv()">
+        <svg viewBox="0 0 18 18" fill="none" width="16" height="16"><path d="M9 12V3M9 12l-3-3M9 12l3-3M3 15h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Xuất CSV
+      </button>
+      <button class="geo-btn" style="background-color: #ef4444; color: white;" id="btnCheckMalicious" onclick="checkMalicious()">
+        <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Check Độc Hại
+      </button>
+      <label style="color: var(--text-m); font-size: 13px; display: flex; align-items: center; gap: 6px; margin-left: 8px; cursor: pointer;">
+        <input type="checkbox" id="chkExcludeGoogle" checked> Loại trừ IP Google
+      </label>
+      <div class="geo-status" id="geoStatus">Sẵn sàng</div>
+    </div>
+  </div>
+  
+  <!-- Modal hiển thị danh sách IP độc hại -->
+  <div id="maliciousModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000;">
+    <div style="background: var(--bg2); padding: 24px; border-radius: 12px; width: 500px; border: 1px solid var(--border);">
+      <h3 style="margin-top: 0; color: #fca5a5;">Danh sách IP Độc Hại</h3>
+      <textarea id="maliciousResultText" style="width: 100%; height: 150px; background: var(--bg3); border: 1px solid var(--border); color: var(--text-l); padding: 12px; margin-bottom: 16px; border-radius: 6px; box-sizing: border-box;" readonly></textarea>
+      <div style="display: flex; gap: 12px; justify-content: flex-end;">
+        <button class="geo-btn geo-btn-secondary" onclick="document.getElementById('maliciousModal').style.display='none'">Đóng</button>
+        <button class="geo-btn geo-btn-primary" onclick="copyMalicious()">Copy Danh Sách</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="geo-results-card">
+    <div class="geo-table-wrap">
+      <table class="geo-table">
+        <thead>
+          <tr>
+            <th width="15%">Địa chỉ IP</th>
+            <th width="25%">Loại IP (Phạm vi)</th>
+            <th width="20%">Quốc gia</th>
+            <th width="15%">Thành phố</th>
+            <th width="25%">Nhà mạng / ISP</th>
+          </tr>
+        </thead>
+        <tbody id="geoTableBody">
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Tesseract.js v4 - chay 100% tren trinh duyet, khong can cai gi them -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+<script>
+let currentResults = [];
+let currentMaliciousIps = [];
+let tesseractWorker = null; // Worker dung lai de nhanh hon lan sau
+
+// ─── Validate IPv4 ───────────────────────────────────────────────────────────
+function isValidIPv4(ip) {
+  const parts = ip.split('.');
+  if (parts.length !== 4) return false;
+  return parts.every(function(p) {
+    const n = parseInt(p, 10);
+    return !isNaN(n) && n >= 0 && n <= 255 && String(n) === p;
+  });
+}
+
+// ─── Trich xuat IP tu text (Noi long regex de bat IP co khoang trang/dau phay do OCR loi) ───
+function extractIPsFromText(text) {
+  console.log("Raw OCR Text:", text); // Debug
+  var matches = text.match(/\b\d{1,3}[., ]+\d{1,3}[., ]+\d{1,3}[., ]+\d{1,3}\b/g) || [];
+  var normalized = matches.map(function(m) { return m.replace(/[., ]+/g, '.'); });
+  return [...new Set(normalized.filter(isValidIPv4))];
+}
+
+// ─── Drag & Drop ─────────────────────────────────────────────────────────────
+function onDragOver(e) {
+  e.preventDefault(); e.stopPropagation();
+  document.getElementById('dropZone').style.borderColor = 'var(--primary)';
+  document.getElementById('dropZone').style.background = 'rgba(59,130,246,0.06)';
+}
+function onDragLeave(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').style.borderColor = 'var(--border)';
+  document.getElementById('dropZone').style.background = 'var(--bg3)';
+}
+function onDrop(e) {
+  e.preventDefault(); e.stopPropagation();
+  onDragLeave(e);
+  var file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    handleImageFile(file);
+  } else {
+    alert('Vui long keo tha file anh (PNG, JPG, BMP, WebP).');
+  }
+}
+function onFileSelected(e) {
+  var file = e.target.files[0];
+  if (file) handleImageFile(file);
+  e.target.value = '';
+}
+
+// ─── Paste anh (Ctrl+V) ──────────────────────────────────────────────────────
+document.addEventListener('paste', function(e) {
+  var items = (e.clipboardData || e.originalEvent.clipboardData).items;
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].kind === 'file' && items[i].type.startsWith('image/')) {
+      handleImageFile(items[i].getAsFile());
+      break;
+    }
+  }
+});
+
+// ─── Hien thi preview anh va tien xu ly (phong to) tang do chinh xac OCR ─────
+function handleImageFile(file) {
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    var dataUrl = ev.target.result;
+    document.getElementById('previewImg').src = dataUrl;
+    document.getElementById('dropZoneIdle').style.display = 'none';
+    document.getElementById('dropZonePreview').style.display = 'block';
+    
+    // Dung Canvas de phong to anh (upscale), giup OCR doc chu nho tot hon
+    var img = new Image();
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      var scale = 2.0; // Phong to gap doi
+      if (img.width < 800) scale = 3.0; // Neu anh qua nho thi gap 3
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      var ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'white'; // Nen trang
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      var scaledDataUrl = canvas.toDataURL('image/png');
+      
+      // Chay OCR voi anh da phong to
+      runOCR(scaledDataUrl);
+    };
+    img.src = dataUrl;
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearImage() {
+  document.getElementById('previewImg').src = '';
+  document.getElementById('dropZoneIdle').style.display = 'block';
+  document.getElementById('dropZonePreview').style.display = 'none';
+  document.getElementById('ocrProgressBar').style.display = 'none';
+  document.getElementById('ocrProgressFill').style.width = '0%';
+  document.getElementById('ocrProgressText').textContent = '';
+}
+
+// ─── OCR dung Tesseract.recognize() top-level API (on dinh nhat) ─────────────
+async function runOCR(imageDataUrl) {
+  var statusEl = document.getElementById('geoStatus');
+  var btnCheck = document.getElementById('btnCheck');
+  var progBar  = document.getElementById('ocrProgressBar');
+  var progFill = document.getElementById('ocrProgressFill');
+  var progText = document.getElementById('ocrProgressText');
+
+  btnCheck.disabled = true;
+  progBar.style.display = 'block';
+  progFill.style.width = '5%';
+  progText.textContent = 'Dang khoi dong OCR...';
+  statusEl.textContent = 'Dang doc chu tu anh...';
+
+  try {
+    // Dung top-level Tesseract.recognize() - nhan dataURL, on dinh nhat voi v4
+    var result = await Tesseract.recognize(imageDataUrl, 'eng', {
+      logger: function(m) {
+        if (m.status === 'loading tesseract core') {
+          progFill.style.width = '10%';
+          progText.textContent = 'Dang tai OCR engine...';
+        } else if (m.status === 'loading language traineddata') {
+          progFill.style.width = '30%';
+          progText.textContent = 'Dang tai du lieu tieng Anh...';
+        } else if (m.status === 'initializing api') {
+          progFill.style.width = '50%';
+          progText.textContent = 'Dang khoi tao...';
+        } else if (m.status === 'recognizing text') {
+          var pct = 50 + Math.round(m.progress * 45);
+          progFill.style.width = pct + '%';
+          progText.textContent = 'Dang doc chu: ' + Math.round(m.progress * 100) + '%';
+          statusEl.textContent = 'Dang nhan dang chu: ' + Math.round(m.progress * 100) + '%';
+        }
+      }
+    });
+
+    progFill.style.width = '100%';
+
+    var rawText = result.data.text;
+    var ips = extractIPsFromText(rawText);
+
+    if (ips.length > 0) {
+      var currentInput = document.getElementById('ipsInput').value.trim();
+      var newIps = ips.join('\n');
+      document.getElementById('ipsInput').value = currentInput ? currentInput + '\n' + newIps : newIps;
+      statusEl.textContent = 'Tim thay ' + ips.length + ' IP tu anh. Nhan "Kiem tra" de phan tich.';
+      progText.textContent = 'Tim thay ' + ips.length + ' IP';
+      progFill.style.background = '#10b981';
+    } else {
+      statusEl.textContent = 'Khong tim thay IP nao trong anh. Thu chup ro hon.';
+      progText.textContent = 'Khong co IP';
+    }
+
+  } catch (err) {
+    console.error('[OCR Error]', err);
+    statusEl.textContent = 'Loi OCR: ' + (err.message || String(err));
+    progText.textContent = 'Loi';
+    progFill.style.background = '#ef4444';
+  } finally {
+    btnCheck.disabled = false;
+    setTimeout(function() {
+      progBar.style.display = 'none';
+      progFill.style.width = '0%';
+      progFill.style.background = 'var(--primary)';
+    }, 3000);
+  }
+}
+
+// ─── Copy danh sach IP ────────────────────────────────────────────────────────
+function copyIpsList() {
+  var rawInput = document.getElementById('ipsInput').value;
+  var matches = rawInput.match(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g) || [];
+  var ips = [...new Set(matches.filter(isValidIPv4))];
+  if (ips.length === 0) { alert('Khong co IP nao de copy.'); return; }
+  var text = ips.join('\n');
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(function() {
+      alert('Da copy ' + ips.length + ' IP vao Clipboard!');
+    }).catch(function(err) { alert('Loi copy: ' + err); });
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    try { document.execCommand('copy'); alert('Da copy ' + ips.length + ' IP vao Clipboard!'); }
+    catch(err) { alert('Loi copy: ' + err); }
+    document.body.removeChild(ta);
+  }
+}
+
+// ─── Kiem tra IP (goi /api/geo) ───────────────────────────────────────────────
+async function checkIps() {
+  var rawInput = document.getElementById('ipsInput').value;
+  var matches  = rawInput.match(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g) || [];
+  var ips = [...new Set(matches.filter(isValidIPv4))];
+  if (ips.length === 0) { alert('Vui long nhap it nhat mot dia chi IPv4 hop le.'); return; }
+
+  document.getElementById('btnCheck').disabled = true;
+  document.getElementById('btnCheck').style.opacity = '0.7';
+  document.getElementById('geoStatus').textContent = 'Dang phan tich ' + ips.length + ' IP...';
+
+  try {
+    var res = await fetch('/api/geo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ips: ips })
+    });
+    if (!res.ok) throw new Error('Loi HTTP ' + res.status);
+    var data = await res.json();
+
+    var excludeGoogle = document.getElementById('chkExcludeGoogle').checked;
+    var foreignData = data.filter(function(r) {
+      if (r.tag !== 'foreign') return false;
+      if (excludeGoogle && r.isp && r.isp.toLowerCase().includes('google')) return false;
+      return true;
+    });
+
+    currentResults = foreignData;
+    renderTable(foreignData);
+    document.getElementById('geoStatus').textContent =
+      'Kiem tra hoan tat — loc duoc ' + foreignData.length + ' IP nuoc ngoai.';
+  } catch (err) {
+    console.error(err);
+    document.getElementById('geoStatus').textContent = 'Loi: ' + err.message;
+  } finally {
+    document.getElementById('btnCheck').disabled = false;
+    document.getElementById('btnCheck').style.opacity = '1';
+  }
+}
+
+// ─── Check Doc Hai ────────────────────────────────────────────────────────────
+async function checkMalicious() {
+  if (currentResults.length === 0) { alert('Khong co IP nuoc ngoai nao de kiem tra!'); return; }
+  var ipsToCheck = currentResults.map(function(r) { return r.ip; });
+  var btn = document.getElementById('btnCheckMalicious');
+  btn.disabled = true; btn.style.opacity = '0.7';
+  document.getElementById('geoStatus').textContent = 'Dang kiem tra doc hai cho ' + ipsToCheck.length + ' IP...';
+  try {
+    var res = await fetch('/api/check_malicious_bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ips: ipsToCheck })
+    });
+    if (!res.ok) throw new Error('Loi HTTP ' + res.status);
+    var data = await res.json();
+    var details = data.details || [];
+    currentMaliciousIps = data.malicious_ips || [];
+    if (details.length > 0) {
+      var out = '';
+      details.forEach(function(item) {
+        out += '[IP] ' + item.ip + '\n';
+        out += '- Muc do: ' + item.risk_level + ' (Score: ' + item.score + ')\n';
+        if (item.reasons && item.reasons.length > 0) out += '- Dau hieu: ' + item.reasons.join(' | ') + '\n';
+        out += '\n';
+      });
+      document.getElementById('maliciousResultText').value = out.trim();
+      document.getElementById('maliciousModal').style.display = 'flex';
+      document.getElementById('geoStatus').textContent = 'Phat hien ' + details.length + ' IP co dau hieu rui ro!';
+    } else {
+      alert('Khong phat hien IP doc hai nao!');
+      document.getElementById('geoStatus').textContent = 'Khong co IP doc hai.';
+    }
+  } catch (err) {
+    console.error(err);
+    document.getElementById('geoStatus').textContent = 'Loi kiem tra doc hai: ' + err.message;
+  } finally {
+    btn.disabled = false; btn.style.opacity = '1';
+  }
+}
+
+// ─── Copy IP doc hai ──────────────────────────────────────────────────────────
+function copyMalicious() {
+  if (!currentMaliciousIps.length) return;
+  var text = currentMaliciousIps.join('\n');
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(function() { alert('Da copy danh sach IP doc hai!'); })
+    .catch(function(err) { alert('Loi: ' + err); });
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    try { document.execCommand('copy'); alert('Da copy danh sach IP doc hai!'); }
+    catch(e) { alert('Loi: ' + e); }
+    document.body.removeChild(ta);
+  }
+}
+
+// ─── Render bang ─────────────────────────────────────────────────────────────
+function renderTable(data) {
+  var tbody = document.getElementById('geoTableBody');
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-d)">Khong co du lieu</td></tr>';
+    return;
+  }
+  tbody.innerHTML = data.map(function(r) {
+    return '<tr>' +
+      '<td style="font-family:\'JetBrains Mono\',monospace">' + escHtml(r.ip) + '</td>' +
+      '<td><span class="geo-tag geo-tag-' + escHtml(r.tag) + '">' + escHtml(r.scope) + '</span></td>' +
+      '<td>' + escHtml(r.country) + '</td>' +
+      '<td>' + escHtml(r.city) + '</td>' +
+      '<td>' + escHtml(r.isp) + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+// ─── Xoa ket qua ─────────────────────────────────────────────────────────────
+function clearResults() {
+  currentResults = [];
+  document.getElementById('geoTableBody').innerHTML = '';
+  document.getElementById('geoStatus').textContent = 'Da xoa ket qua.';
+  document.getElementById('ipsInput').value = '';
+  clearImage();
+}
+
+// ─── Xuat CSV ────────────────────────────────────────────────────────────────
+function exportCsv() {
+  if (!currentResults.length) { alert('Khong co du lieu de xuat.'); return; }
+  var headers = ['IP', 'Trang thai', 'Quoc gia', 'Thanh pho', 'ISP'];
+  var rows = currentResults.map(function(r) { return [r.ip, r.scope, r.country, r.city, r.isp]; });
+  var csv = '\uFEFF' + headers.join(',') + '\n' +
+    rows.map(function(e) {
+      return e.map(function(f) { return '"' + String(f).replace(/"/g, '""') + '"'; }).join(',');
+    }).join('\n');
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'ip_geo_results.csv';
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
