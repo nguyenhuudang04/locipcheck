@@ -1,0 +1,12 @@
+.venv
+venv
+.git
+.github
+tests
+raw_api
+tools
+*.bat
+.mypy_cache
+.pytest_cache
+*.pyc
+__pycache__

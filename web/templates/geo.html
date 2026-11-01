@@ -8,6 +8,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
   <style>
+    :root {
+      --primary: #3b82f6;
+      --primary-h: #2563eb;
+      --text-l: #e2e8f0;
+      --bg-hover: #334155;
+    }
     .geo-container { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
     .geo-header { margin-bottom: 24px; }
     .geo-header h1 { font-size: 24px; color: #fff; margin-bottom: 8px; }
@@ -15,24 +21,237 @@
     .geo-input-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
     .geo-textarea { width: 100%; height: 150px; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 12px; color: var(--text-l); font-family: 'JetBrains Mono', monospace; font-size: 13px; resize: vertical; margin-bottom: 16px; box-sizing: border-box; }
     .geo-textarea:focus { outline: none; border-color: var(--primary); }
-    .geo-controls { display: flex; gap: 12px; align-items: center; }
+    .geo-controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
     .geo-btn { padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px; border: none; transition: all 0.2s; }
     .geo-btn-primary { background: var(--primary); color: #fff; }
     .geo-btn-primary:hover { background: var(--primary-h); }
     .geo-btn-secondary { background: var(--bg3); color: var(--text-l); border: 1px solid var(--border); }
     .geo-btn-secondary:hover { background: var(--bg-hover); }
-    .geo-status { margin-left: auto; font-size: 14px; color: var(--text-m); }
+    .geo-status { margin-left: auto; font-size: 14px; color: var(--text-m); font-weight: 500; }
     .geo-results-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
     .geo-table-wrap { overflow-x: auto; }
     .geo-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
-    .geo-table th, .geo-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); }
-    .geo-table th { background: var(--bg3); color: var(--text-m); font-weight: 500; }
+    .geo-table th, .geo-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .geo-table th { background: var(--bg3); color: var(--text-m); font-weight: 600; }
     .geo-table tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
     .geo-tag { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; display: inline-block; }
     .geo-tag-foreign { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
     .geo-tag-domestic { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; }
     .geo-tag-private { background: rgba(245, 158, 11, 0.15); color: #fcd34d; }
     .geo-tag-invalid { background: rgba(100, 116, 139, 0.15); color: #94a3b8; }
+
+    /* ─── Khu vực hiển thị danh sách IP độc hại ─── */
+    .malicious-section {
+      margin-top: 28px;
+      background: var(--bg2);
+      border: 1px solid rgba(239, 68, 68, 0.45);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(239, 68, 68, 0.12);
+      animation: fadeIn 0.3s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .malicious-header-bar {
+      padding: 16px 20px;
+      background: linear-gradient(90deg, rgba(239, 68, 68, 0.15) 0%, rgba(30, 41, 59, 0.7) 100%);
+      border-bottom: 1px solid rgba(239, 68, 68, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .malicious-header-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .malicious-header-title h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .malicious-header-sub {
+      font-size: 12px;
+      color: var(--text-m);
+      margin-top: 3px;
+    }
+    .malicious-count-pill {
+      background: #ef4444;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 12px;
+      letter-spacing: 0.5px;
+      box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+      display: inline-block;
+    }
+    .malicious-btn-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .btn-copy-highlight {
+      background: #ef4444;
+      color: #fff;
+      border: 1px solid #dc2626;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+      box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+    }
+    .btn-copy-highlight:hover {
+      background: #dc2626;
+      box-shadow: 0 4px 14px rgba(239, 68, 68, 0.45);
+      transform: translateY(-1px);
+    }
+    .btn-copy-highlight.copied {
+      background: #10b981 !important;
+      border-color: #059669 !important;
+      box-shadow: 0 2px 10px rgba(16, 185, 129, 0.4);
+    }
+    .btn-subtle {
+      background: var(--bg3);
+      color: var(--text-l);
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn-subtle:hover {
+      background: var(--border);
+      color: #fff;
+    }
+    .btn-copy-inline {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-m);
+      cursor: pointer;
+      padding: 2px 5px;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      transition: all 0.15s;
+    }
+    .btn-copy-inline:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      border-color: var(--border);
+    }
+    .risk-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .risk-critical {
+      background: #7f1d1d;
+      color: #fecaca;
+      border: 1px solid #ef4444;
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.3);
+    }
+    .risk-high {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+    .risk-medium {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+    .risk-low {
+      background: rgba(59, 130, 246, 0.15);
+      color: #93c5fd;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+    .risk-score-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .risk-score-track {
+      width: 70px;
+      height: 5px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .risk-score-bar {
+      height: 100%;
+      border-radius: 3px;
+    }
+    .reasons-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      font-size: 12px;
+      color: var(--text-m);
+    }
+    .reasons-list li {
+      margin-bottom: 4px;
+      position: relative;
+      padding-left: 14px;
+      line-height: 1.4;
+    }
+    .reasons-list li:last-child {
+      margin-bottom: 0;
+    }
+    .reasons-list li::before {
+      content: "•";
+      color: #ef4444;
+      font-size: 14px;
+      font-weight: bold;
+      position: absolute;
+      left: 0;
+      top: -1px;
+    }
+    .geo-toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #10b981;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: toastSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes toastSlideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
   </style>
 </head>
 <body>
@@ -141,25 +360,24 @@ Ví dụ:
     </div>
   </div>
   
-  <!-- Modal hiển thị danh sách IP độc hại -->
-  <div id="maliciousModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000;">
-    <div style="background: var(--bg2); padding: 24px; border-radius: 12px; width: 500px; border: 1px solid var(--border);">
-      <h3 style="margin-top: 0; color: #fca5a5;">Danh sách IP Độc Hại</h3>
-      <textarea id="maliciousResultText" style="width: 100%; height: 150px; background: var(--bg3); border: 1px solid var(--border); color: var(--text-l); padding: 12px; margin-bottom: 16px; border-radius: 6px; box-sizing: border-box;" readonly></textarea>
-      <div style="display: flex; gap: 12px; justify-content: flex-end;">
-        <button class="geo-btn geo-btn-secondary" onclick="document.getElementById('maliciousModal').style.display='none'">Đóng</button>
-        <button class="geo-btn geo-btn-primary" onclick="copyMalicious()">Copy Danh Sách</button>
-      </div>
-    </div>
-  </div>
+  <!-- Hidden elements for backward compatibility -->
+  <div id="maliciousModal" style="display: none;"><textarea id="maliciousResultText" style="display:none"></textarea></div>
 
-  <div class="geo-results-card">
+  <!-- Bảng kết quả IP Nước Ngoài -->
+  <div class="geo-results-card" id="geoResultsCard">
+    <div style="padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--bg3);">
+      <div style="font-weight: 600; color: #fff; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+        <svg viewBox="0 0 24 24" fill="none" width="16" height="16"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" stroke="currentColor" stroke-width="2"/></svg>
+        Danh Sách IP Nước Ngoài (Cần Điều Tra)
+      </div>
+      <div style="font-size: 12px; color: var(--text-d);">Nhấn "Check Độc Hại" để quét chuyên sâu VirusTotal, AbuseIPDB...</div>
+    </div>
     <div class="geo-table-wrap">
       <table class="geo-table">
         <thead>
           <tr>
-            <th width="15%">Địa chỉ IP</th>
-            <th width="25%">Loại IP (Phạm vi)</th>
+            <th width="18%">Địa chỉ IP</th>
+            <th width="22%">Loại IP (Phạm vi)</th>
             <th width="20%">Quốc gia</th>
             <th width="15%">Thành phố</th>
             <th width="25%">Nhà mạng / ISP</th>
@@ -170,6 +388,105 @@ Ví dụ:
       </table>
     </div>
   </div>
+
+  <!-- KHU VỰC HIỂN THỊ DANH SÁCH IP ĐỘC HẠI PHÁT HIỆN Ở DƯỚI (ĐỂ XEM & CHỤP ẢNH, CÓ NÚT COPY) -->
+  <div class="malicious-section" id="maliciousSection" style="display: none;">
+    <div class="malicious-header-bar">
+      <div class="malicious-header-title">
+        <div style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #ef4444; flex-shrink: 0;">
+          <svg viewBox="0 0 24 24" fill="none" width="22" height="22">
+            <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <h2>
+            Danh Sách IP Độc Hại & Rủi Ro Phát Hiện
+            <span id="maliciousCountBadge" class="malicious-count-pill">0 IP</span>
+          </h2>
+          <div class="malicious-header-sub">
+            Kết quả kiểm tra chi tiết phục vụ điều tra SOC, chụp ảnh bằng chứng và sao chép danh sách IOC
+          </div>
+        </div>
+      </div>
+      
+      <div class="malicious-btn-group">
+        <!-- NÚT COPY DANH SÁCH IP ĐỘC HẠI -->
+        <button class="btn-copy-highlight" id="btnCopyMaliciousList" onclick="copyMaliciousIpsList()" title="Sao chép toàn bộ IP độc hại (mỗi dòng 1 IP)">
+          <svg viewBox="0 0 16 16" fill="none" width="15" height="15">
+            <rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
+            <path d="M4 11H3a1 1 0 01-1-1V3a1 1 0 011-1h7a1 1 0 011 1v1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          </svg>
+          <span id="copyMaliciousText">Copy list IP độc hại</span>
+        </button>
+        
+        <!-- NÚT COPY BÁO CÁO CHI TIẾT -->
+        <button class="btn-subtle" id="btnCopyMaliciousReport" onclick="copyMaliciousReport()" title="Sao chép báo cáo chi tiết kèm điểm số và dấu hiệu">
+          <svg viewBox="0 0 24 24" fill="none" width="15" height="15">
+            <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span id="copyReportText">Copy báo cáo</span>
+        </button>
+
+        <!-- NÚT XUẤT CSV ĐỘC HẠI -->
+        <button class="btn-subtle" onclick="exportMaliciousCsv()" title="Tải file CSV danh sách IP độc hại">
+          <svg viewBox="0 0 18 18" fill="none" width="15" height="15">
+            <path d="M9 12V3M9 12l-3-3M9 12l3-3M3 15h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Xuất CSV</span>
+        </button>
+
+        <!-- NÚT XEM DẠNG TEXT ĐỂ COPY THỦ CÔNG -->
+        <button class="btn-subtle" onclick="toggleRawMaliciousBox()" title="Bật/Tắt khung hiển thị IP thô">
+          <svg viewBox="0 0 24 24" fill="none" width="15" height="15">
+            <path d="M4 6h16M4 12h16M4 18h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span id="toggleRawText">Xem dạng text</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Khung xem Textarea IP thô (có thể mở rộng) -->
+    <div id="rawMaliciousBox" style="display: none; padding: 14px 20px; background: rgba(15, 23, 42, 0.85); border-bottom: 1px solid var(--border);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span style="font-size: 12px; color: var(--text-m); font-weight: 500;">
+          Danh sách IP thô (Mỗi dòng 1 IP — tiện paste vào firewall / blocklist / SIEM):
+        </span>
+        <button class="geo-btn geo-btn-secondary" style="padding: 4px 10px; font-size: 11px;" onclick="copyMaliciousIpsList()">Copy toàn bộ IP</button>
+      </div>
+      <textarea id="maliciousRawText" style="width: 100%; height: 95px; background: var(--bg); border: 1px solid var(--border); color: #fca5a5; font-family: 'JetBrains Mono', monospace; font-size: 13px; padding: 10px; border-radius: 6px; box-sizing: border-box; resize: vertical;" readonly></textarea>
+    </div>
+
+    <!-- Bảng hiển thị danh sách IP độc hại chi tiết, rõ ràng để xem và chụp ảnh -->
+    <div class="geo-table-wrap">
+      <table class="geo-table" id="maliciousTable">
+        <thead>
+          <tr>
+            <th width="5%" style="text-align: center;">STT</th>
+            <th width="18%">Địa chỉ IP</th>
+            <th width="14%">Mức độ rủi ro</th>
+            <th width="11%">Điểm rủi ro</th>
+            <th width="22%">Quốc gia & ISP</th>
+            <th width="30%">Dấu hiệu / Lý do phát hiện</th>
+          </tr>
+        </thead>
+        <tbody id="maliciousTableBody">
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Banner nếu an toàn không có IP độc hại -->
+    <div id="maliciousEmptyNotice" style="display: none; padding: 36px 20px; text-align: center;">
+      <div style="font-size: 16px; color: #34d399; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;">
+        <svg viewBox="0 0 24 24" fill="none" width="22" height="22">
+          <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Không phát hiện IP độc hại nào!
+      </div>
+      <div style="font-size: 13px; color: var(--text-m); margin-top: 6px;">
+        Tất cả IP nước ngoài đã kiểm tra đều có mức độ rủi ro an toàn hoặc chưa từng bị ghi nhận độc hại trên các cơ sở dữ liệu đe dọa.
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Tesseract.js v4 - chay 100% tren trinh duyet, khong can cai gi them -->
@@ -177,6 +494,7 @@ Ví dụ:
 <script>
 let currentResults = [];
 let currentMaliciousIps = [];
+let currentMaliciousDetails = [];
 let tesseractWorker = null; // Worker dung lai de nhanh hon lan sau
 
 // ─── Validate IPv4 ───────────────────────────────────────────────────────────
@@ -344,36 +662,79 @@ async function runOCR(imageDataUrl) {
 }
 
 // ─── Copy danh sach IP ────────────────────────────────────────────────────────
+// ─── Clipboard & Toast Helper ────────────────────────────────────────────────
+function showToast(msg) {
+  var toast = document.getElementById('geoToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'geoToast';
+    toast.className = 'geo-toast';
+    document.body.appendChild(toast);
+  }
+  toast.innerHTML = '<svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M5 10l3 3 7-7" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg> ' + escHtml(msg);
+  toast.style.display = 'flex';
+  
+  if (window._toastTimer) clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(function() {
+    toast.style.display = 'none';
+  }, 2800);
+}
+
+function copyToClipboard(text, successMsg) {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(function() {
+      showToast(successMsg || 'Đã copy vào Clipboard!');
+    }).catch(function() {
+      fallbackCopy(text, successMsg);
+    });
+  } else {
+    fallbackCopy(text, successMsg);
+  }
+}
+
+function fallbackCopy(text, successMsg) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  ta.style.top = '0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand('copy');
+    showToast(successMsg || 'Đã copy vào Clipboard!');
+  } catch (e) {
+    alert('Không thể tự động copy: ' + e);
+  }
+  document.body.removeChild(ta);
+}
+
+// ─── Copy danh sách IP nhập vào ──────────────────────────────────────────────
 function copyIpsList() {
   var rawInput = document.getElementById('ipsInput').value;
   var matches = rawInput.match(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g) || [];
   var ips = [...new Set(matches.filter(isValidIPv4))];
-  if (ips.length === 0) { alert('Khong co IP nao de copy.'); return; }
-  var text = ips.join('\n');
-  if (navigator.clipboard && window.isSecureContext) {
-    navigator.clipboard.writeText(text).then(function() {
-      alert('Da copy ' + ips.length + ' IP vao Clipboard!');
-    }).catch(function(err) { alert('Loi copy: ' + err); });
-  } else {
-    var ta = document.createElement('textarea');
-    ta.value = text; ta.style.position = 'fixed';
-    document.body.appendChild(ta); ta.focus(); ta.select();
-    try { document.execCommand('copy'); alert('Da copy ' + ips.length + ' IP vao Clipboard!'); }
-    catch(err) { alert('Loi copy: ' + err); }
-    document.body.removeChild(ta);
-  }
+  if (ips.length === 0) { alert('Không có IP nào để copy.'); return; }
+  copyToClipboard(ips.join('\n'), 'Đã copy ' + ips.length + ' IP vào Clipboard!');
 }
 
-// ─── Kiem tra IP (goi /api/geo) ───────────────────────────────────────────────
+// ─── Kiểm tra IP (gọi /api/geo) ──────────────────────────────────────────────
 async function checkIps() {
   var rawInput = document.getElementById('ipsInput').value;
   var matches  = rawInput.match(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g) || [];
   var ips = [...new Set(matches.filter(isValidIPv4))];
-  if (ips.length === 0) { alert('Vui long nhap it nhat mot dia chi IPv4 hop le.'); return; }
+  if (ips.length === 0) { alert('Vui lòng nhập ít nhất một địa chỉ IPv4 hợp lệ.'); return; }
+
+  // Reset kết quả độc hại trước đó khi chạy kiểm tra IP mới
+  currentMaliciousIps = [];
+  currentMaliciousDetails = [];
+  var malSection = document.getElementById('maliciousSection');
+  if (malSection) malSection.style.display = 'none';
 
   document.getElementById('btnCheck').disabled = true;
   document.getElementById('btnCheck').style.opacity = '0.7';
-  document.getElementById('geoStatus').textContent = 'Dang phan tich ' + ips.length + ' IP...';
+  document.getElementById('geoStatus').textContent = 'Đang phân tích ' + ips.length + ' IP...';
 
   try {
     var res = await fetch('/api/geo', {
@@ -381,7 +742,7 @@ async function checkIps() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ips: ips })
     });
-    if (!res.ok) throw new Error('Loi HTTP ' + res.status);
+    if (!res.ok) throw new Error('Lỗi HTTP ' + res.status);
     var data = await res.json();
 
     var excludeGoogle = document.getElementById('chkExcludeGoogle').checked;
@@ -394,83 +755,317 @@ async function checkIps() {
     currentResults = foreignData;
     renderTable(foreignData);
     document.getElementById('geoStatus').textContent =
-      'Kiem tra hoan tat — loc duoc ' + foreignData.length + ' IP nuoc ngoai.';
+      'Kiểm tra hoàn tất — lọc được ' + foreignData.length + ' IP nước ngoài.';
   } catch (err) {
     console.error(err);
-    document.getElementById('geoStatus').textContent = 'Loi: ' + err.message;
+    document.getElementById('geoStatus').textContent = 'Lỗi: ' + err.message;
   } finally {
     document.getElementById('btnCheck').disabled = false;
     document.getElementById('btnCheck').style.opacity = '1';
   }
 }
 
-// ─── Check Doc Hai ────────────────────────────────────────────────────────────
+// ─── Check Độc Hại (Hiển thị danh sách ở dưới để xem & chụp hình + nút copy) ──
 async function checkMalicious() {
-  if (currentResults.length === 0) { alert('Khong co IP nuoc ngoai nao de kiem tra!'); return; }
+  if (!currentResults || currentResults.length === 0) {
+    alert('Không có IP nước ngoài nào để kiểm tra!');
+    return;
+  }
   var ipsToCheck = currentResults.map(function(r) { return r.ip; });
   var btn = document.getElementById('btnCheckMalicious');
-  btn.disabled = true; btn.style.opacity = '0.7';
-  document.getElementById('geoStatus').textContent = 'Dang kiem tra doc hai cho ' + ipsToCheck.length + ' IP...';
+  btn.disabled = true;
+  btn.style.opacity = '0.7';
+  document.getElementById('geoStatus').textContent = 'Đang kiểm tra độc hại cho ' + ipsToCheck.length + ' IP...';
+
   try {
     var res = await fetch('/api/check_malicious_bulk', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ips: ipsToCheck })
     });
-    if (!res.ok) throw new Error('Loi HTTP ' + res.status);
+    if (!res.ok) throw new Error('Lỗi HTTP ' + res.status);
     var data = await res.json();
     var details = data.details || [];
     currentMaliciousIps = data.malicious_ips || [];
+    currentMaliciousDetails = details;
+
+    // Đánh dấu đỏ các dòng IP độc hại ở bảng nước ngoài phía trên
+    renderTable(currentResults);
+
+    // Hiển thị bảng chi tiết IP độc hại ở phía dưới
+    renderMaliciousSection(details);
+
     if (details.length > 0) {
-      var out = '';
-      details.forEach(function(item) {
-        out += '[IP] ' + item.ip + '\n';
-        out += '- Muc do: ' + item.risk_level + ' (Score: ' + item.score + ')\n';
-        if (item.reasons && item.reasons.length > 0) out += '- Dau hieu: ' + item.reasons.join(' | ') + '\n';
-        out += '\n';
-      });
-      document.getElementById('maliciousResultText').value = out.trim();
-      document.getElementById('maliciousModal').style.display = 'flex';
-      document.getElementById('geoStatus').textContent = 'Phat hien ' + details.length + ' IP co dau hieu rui ro!';
+      document.getElementById('geoStatus').innerHTML =
+        '<span style="color:#f87171;font-weight:700">⚠️ Phát hiện ' + details.length + ' IP có dấu hiệu rủi ro!</span>';
+
+      // Cuộn mượt xuống khu vực hiển thị độc hại để dễ xem và chụp ảnh
+      setTimeout(function() {
+        var el = document.getElementById('maliciousSection');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
     } else {
-      alert('Khong phat hien IP doc hai nao!');
-      document.getElementById('geoStatus').textContent = 'Khong co IP doc hai.';
+      document.getElementById('geoStatus').innerHTML =
+        '<span style="color:#34d399;font-weight:600">✓ Không có IP độc hại.</span>';
     }
   } catch (err) {
     console.error(err);
-    document.getElementById('geoStatus').textContent = 'Loi kiem tra doc hai: ' + err.message;
+    document.getElementById('geoStatus').textContent = 'Lỗi kiểm tra độc hại: ' + err.message;
   } finally {
-    btn.disabled = false; btn.style.opacity = '1';
+    btn.disabled = false;
+    btn.style.opacity = '1';
   }
 }
 
-// ─── Copy IP doc hai ──────────────────────────────────────────────────────────
-function copyMalicious() {
-  if (!currentMaliciousIps.length) return;
+// ─── Render Bảng Danh Sách IP Độc Hại Ở Phía Dưới ────────────────────────────
+function renderMaliciousSection(details) {
+  var section = document.getElementById('maliciousSection');
+  var badge = document.getElementById('maliciousCountBadge');
+  var tbody = document.getElementById('maliciousTableBody');
+  var rawText = document.getElementById('maliciousRawText');
+  var emptyNotice = document.getElementById('maliciousEmptyNotice');
+  var tableWrap = section.querySelector('.geo-table-wrap');
+
+  section.style.display = 'block';
+
+  if (!details || details.length === 0) {
+    badge.textContent = '0 IP';
+    badge.style.background = '#10b981';
+    tbody.innerHTML = '';
+    if (rawText) rawText.value = '';
+    if (tableWrap) tableWrap.style.display = 'none';
+    if (emptyNotice) emptyNotice.style.display = 'block';
+    return;
+  }
+
+  badge.textContent = details.length + ' IP rủi ro';
+  badge.style.background = '#ef4444';
+  if (tableWrap) tableWrap.style.display = 'block';
+  if (emptyNotice) emptyNotice.style.display = 'none';
+
+  // Điền text vào textarea raw
+  var rawIps = details.map(function(d) { return d.ip; });
+  if (rawText) rawText.value = rawIps.join('\n');
+
+  // Map tra cứu Geo từ currentResults (Quốc gia, Thành phố, ISP)
+  var geoMap = {};
+  currentResults.forEach(function(r) {
+    geoMap[r.ip] = r;
+  });
+
+  tbody.innerHTML = details.map(function(item, index) {
+    var geo = geoMap[item.ip] || {};
+    var country = geo.country || 'N/A';
+    var city = (geo.city && geo.city !== 'N/A') ? ' (' + geo.city + ')' : '';
+    var isp = geo.isp || 'N/A';
+    var level = (item.risk_level || 'UNKNOWN').toUpperCase();
+
+    var score = item.score !== undefined ? item.score : 0;
+    var scoreColor = score >= 80 ? '#ef4444' : (score >= 50 ? '#f59e0b' : '#3b82f6');
+
+    var reasonsHtml = '';
+    if (item.reasons && item.reasons.length > 0) {
+      reasonsHtml = '<ul class="reasons-list">' +
+        item.reasons.map(function(reason) {
+          return '<li>' + escHtml(reason) + '</li>';
+        }).join('') +
+      '</ul>';
+    } else {
+      reasonsHtml = '<span style="color:var(--text-d);font-style:italic">Không có chi tiết</span>';
+    }
+
+    return '<tr>' +
+      '<td style="text-align: center; color: var(--text-d); font-weight: 500;">' + (index + 1) + '</td>' +
+      '<td>' +
+        '<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">' +
+          '<span style="font-family: \'JetBrains Mono\', monospace; font-weight: 700; color: #fca5a5; font-size: 13.5px;">' + escHtml(item.ip) + '</span>' +
+          '<button class="btn-copy-inline" title="Copy riêng IP này" onclick="copySingleIp(\'' + escHtml(item.ip) + '\', this)">' +
+            '<svg viewBox="0 0 16 16" fill="none" width="13" height="13"><rect x="5" y="5" width="9" height="9" rx="1.2" stroke="currentColor" stroke-width="1.3"/><path d="M4 11H3a1 1 0 01-1-1V3a1 1 0 011-1h7a1 1 0 011 1v1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>' +
+          '</button>' +
+        '</div>' +
+      '</td>' +
+      '<td>' +
+        '<span class="risk-badge risk-' + level.toLowerCase() + '">' + escHtml(level) + '</span>' +
+      '</td>' +
+      '<td>' +
+        '<div class="risk-score-num" style="color: ' + scoreColor + '">' + score + '<span style="font-size:11px;color:var(--text-d);font-weight:normal">/100</span></div>' +
+        '<div class="risk-score-track">' +
+          '<div class="risk-score-bar" style="width: ' + Math.min(score, 100) + '%; background: ' + scoreColor + ';"></div>' +
+        '</div>' +
+      '</td>' +
+      '<td>' +
+        '<div style="font-weight: 600; color: #fff;">' + escHtml(country + city) + '</div>' +
+        '<div style="font-size: 12px; color: var(--text-d); margin-top: 2px;">' + escHtml(isp) + '</div>' +
+      '</td>' +
+      '<td>' + reasonsHtml + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+// ─── Nút Copy Danh Sách IP Độc Hại ───────────────────────────────────────────
+function copyMaliciousIpsList() {
+  if (!currentMaliciousIps || currentMaliciousIps.length === 0) {
+    alert('Không có IP độc hại nào để copy!');
+    return;
+  }
   var text = currentMaliciousIps.join('\n');
-  if (navigator.clipboard && window.isSecureContext) {
-    navigator.clipboard.writeText(text).then(function() { alert('Da copy danh sach IP doc hai!'); })
-    .catch(function(err) { alert('Loi: ' + err); });
-  } else {
-    var ta = document.createElement('textarea');
-    ta.value = text; ta.style.position = 'fixed';
-    document.body.appendChild(ta); ta.focus(); ta.select();
-    try { document.execCommand('copy'); alert('Da copy danh sach IP doc hai!'); }
-    catch(e) { alert('Loi: ' + e); }
-    document.body.removeChild(ta);
+  var btn = document.getElementById('btnCopyMaliciousList');
+  var textSpan = document.getElementById('copyMaliciousText');
+
+  copyToClipboard(text, 'Đã copy ' + currentMaliciousIps.length + ' IP độc hại vào Clipboard!');
+
+  if (btn && textSpan) {
+    btn.classList.add('copied');
+    var originalText = textSpan.textContent;
+    textSpan.textContent = '✓ Đã copy ' + currentMaliciousIps.length + ' IP!';
+    setTimeout(function() {
+      btn.classList.remove('copied');
+      textSpan.textContent = originalText;
+    }, 2500);
   }
 }
 
-// ─── Render bang ─────────────────────────────────────────────────────────────
+// ─── Copy Từng IP Riêng Lẻ ───────────────────────────────────────────────────
+function copySingleIp(ip, btn) {
+  copyToClipboard(ip, 'Đã copy ' + ip);
+  if (btn) {
+    var orig = btn.innerHTML;
+    btn.innerHTML = '<svg viewBox="0 0 16 16" fill="none" width="13" height="13"><path d="M3 8l3 3 7-7" stroke="#10b981" stroke-width="2" stroke-linecap="round"/></svg>';
+    setTimeout(function() { btn.innerHTML = orig; }, 1500);
+  }
+}
+
+// ─── Nút Copy Báo Cáo Chi Tiết ───────────────────────────────────────────────
+function copyMaliciousReport() {
+  if (!currentMaliciousDetails || currentMaliciousDetails.length === 0) {
+    alert('Không có báo cáo IP độc hại để copy!');
+    return;
+  }
+  var geoMap = {};
+  currentResults.forEach(function(r) { geoMap[r.ip] = r; });
+
+  var lines = [];
+  lines.push('══════════════════════════════════════════════════════════════');
+  lines.push('BÁO CÁO IP ĐỘC HẠI & RỦI RO (SOC IOC ENRICHMENT)');
+  lines.push('Tổng số IP rủi ro: ' + currentMaliciousDetails.length + ' IP');
+  lines.push('Thời gian kiểm tra: ' + new Date().toLocaleString('vi-VN'));
+  lines.push('══════════════════════════════════════════════════════════════\n');
+
+  currentMaliciousDetails.forEach(function(item, idx) {
+    var geo = geoMap[item.ip] || {};
+    var country = geo.country || 'N/A';
+    var city = (geo.city && geo.city !== 'N/A') ? ' (' + geo.city + ')' : '';
+    var isp = geo.isp || 'N/A';
+    lines.push((idx + 1) + '. IP: ' + item.ip);
+    lines.push('   - Mức độ: ' + item.risk_level + ' (Score: ' + item.score + '/100)');
+    lines.push('   - Quốc gia / ISP: ' + country + city + ' | ' + isp);
+    if (item.reasons && item.reasons.length > 0) {
+      lines.push('   - Dấu hiệu cảnh báo:');
+      item.reasons.forEach(function(r) {
+        lines.push('     • ' + r);
+      });
+    }
+    lines.push('');
+  });
+
+  copyToClipboard(lines.join('\n').trim(), 'Đã copy báo cáo chi tiết vào Clipboard!');
+
+  var btn = document.getElementById('btnCopyMaliciousReport');
+  var textSpan = document.getElementById('copyReportText');
+  if (btn && textSpan) {
+    btn.classList.add('copied');
+    var originalText = textSpan.textContent;
+    textSpan.textContent = '✓ Đã copy báo cáo!';
+    setTimeout(function() {
+      btn.classList.remove('copied');
+      textSpan.textContent = originalText;
+    }, 2500);
+  }
+}
+
+// ─── Nút Xuất CSV Độc Hại ────────────────────────────────────────────────────
+function exportMaliciousCsv() {
+  if (!currentMaliciousDetails || currentMaliciousDetails.length === 0) {
+    alert('Không có dữ liệu IP độc hại để xuất CSV!');
+    return;
+  }
+  var geoMap = {};
+  currentResults.forEach(function(r) { geoMap[r.ip] = r; });
+
+  var headers = ['STT', 'Dia chi IP', 'Muc do rui ro', 'Diem so', 'Quoc gia', 'Thanh pho', 'ISP', 'Dau hieu rui ro'];
+  var rows = currentMaliciousDetails.map(function(item, idx) {
+    var geo = geoMap[item.ip] || {};
+    var country = geo.country || '';
+    var city = geo.city || '';
+    var isp = geo.isp || '';
+    var reasons = (item.reasons || []).join(' | ');
+    return [
+      idx + 1,
+      item.ip,
+      item.risk_level,
+      item.score,
+      country,
+      city,
+      isp,
+      reasons
+    ];
+  });
+
+  var csvContent = '\uFEFF' + headers.join(',') + '\n' +
+    rows.map(function(row) {
+      return row.map(function(field) {
+        return '"' + String(field).replace(/"/g, '""') + '"';
+      }).join(',');
+    }).join('\n');
+
+  var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  var link = document.createElement('a');
+  var now = new Date();
+  var ts = now.getFullYear() + '' + ('0' + (now.getMonth() + 1)).slice(-2) + '' + ('0' + now.getDate()).slice(-2) + '_' + ('0' + now.getHours()).slice(-2) + ('0' + now.getMinutes()).slice(-2);
+  link.href = URL.createObjectURL(blob);
+  link.download = 'ip_doc_hai_' + ts + '.csv';
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  showToast('Đã xuất file CSV IP độc hại!');
+}
+
+// ─── Bật/Tắt Khung IP Dạng Text Thô ──────────────────────────────────────────
+function toggleRawMaliciousBox() {
+  var box = document.getElementById('rawMaliciousBox');
+  var txt = document.getElementById('toggleRawText');
+  if (box.style.display === 'none') {
+    box.style.display = 'block';
+    txt.textContent = 'Ẩn dạng text';
+  } else {
+    box.style.display = 'none';
+    txt.textContent = 'Xem dạng text';
+  }
+}
+
+// ─── Render Bảng IP Nước Ngoài (Có Highlight Đỏ Nếu Độc Hại) ─────────────────
 function renderTable(data) {
   var tbody = document.getElementById('geoTableBody');
   if (!data.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-d)">Khong co du lieu</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-d)">Không có dữ liệu</td></tr>';
     return;
   }
   tbody.innerHTML = data.map(function(r) {
-    return '<tr>' +
-      '<td style="font-family:\'JetBrains Mono\',monospace">' + escHtml(r.ip) + '</td>' +
+    var isMalicious = currentMaliciousIps.includes(r.ip);
+    var rowStyle = isMalicious
+      ? 'style="background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444;"'
+      : '';
+    var malBadge = isMalicious
+      ? ' <span style="background: #ef4444; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; vertical-align: middle; margin-left: 6px; letter-spacing: 0.3px;">⚠️ ĐỘC HẠI</span>'
+      : '';
+
+    return '<tr ' + rowStyle + '>' +
+      '<td style="font-family:\'JetBrains Mono\',monospace; font-weight:' + (isMalicious ? '700' : '500') + '">' +
+        escHtml(r.ip) + malBadge +
+      '</td>' +
       '<td><span class="geo-tag geo-tag-' + escHtml(r.tag) + '">' + escHtml(r.scope) + '</span></td>' +
       '<td>' + escHtml(r.country) + '</td>' +
       '<td>' + escHtml(r.city) + '</td>' +
@@ -479,18 +1074,31 @@ function renderTable(data) {
   }).join('');
 }
 
-// ─── Xoa ket qua ─────────────────────────────────────────────────────────────
+// ─── Xóa kết quả ─────────────────────────────────────────────────────────────
 function clearResults() {
   currentResults = [];
+  currentMaliciousIps = [];
+  currentMaliciousDetails = [];
   document.getElementById('geoTableBody').innerHTML = '';
-  document.getElementById('geoStatus').textContent = 'Da xoa ket qua.';
+  document.getElementById('geoStatus').textContent = 'Đã xóa kết quả.';
   document.getElementById('ipsInput').value = '';
+
+  // Ẩn và xóa khu vực độc hại
+  var malSection = document.getElementById('maliciousSection');
+  if (malSection) {
+    malSection.style.display = 'none';
+    var mBody = document.getElementById('maliciousTableBody');
+    if (mBody) mBody.innerHTML = '';
+    var mRaw = document.getElementById('maliciousRawText');
+    if (mRaw) mRaw.value = '';
+  }
+
   clearImage();
 }
 
-// ─── Xuat CSV ────────────────────────────────────────────────────────────────
+// ─── Xuất CSV IP Nước Ngoài ──────────────────────────────────────────────────
 function exportCsv() {
-  if (!currentResults.length) { alert('Khong co du lieu de xuat.'); return; }
+  if (!currentResults.length) { alert('Không có dữ liệu để xuất.'); return; }
   var headers = ['IP', 'Trang thai', 'Quoc gia', 'Thanh pho', 'ISP'];
   var rows = currentResults.map(function(r) { return [r.ip, r.scope, r.country, r.city, r.isp]; });
   var csv = '\uFEFF' + headers.join(',') + '\n' +

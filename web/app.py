@@ -24,10 +24,23 @@ from src.models import AlertContext, IOCReport, IOCType
 from src.scoring import calculate_risk
 from src import report as reporter
 
-app = Flask(__name__)
+BASE_DIR = Path(__file__).resolve().parent
+ROOT_DIR = BASE_DIR.parent
+TEMPLATES_DIR = BASE_DIR / "templates"
+STATIC_DIR = BASE_DIR / "static"
+
+app = Flask(
+    __name__,
+    template_folder=str(TEMPLATES_DIR),
+    static_folder=str(STATIC_DIR)
+)
 app.config["JSON_SORT_KEYS"] = False
 
-REPORTS_DIR = Path(__file__).parent.parent / "reports"
+# Trên Vercel hoặc serverless, chỉ thư mục /tmp được phép ghi
+if os.environ.get("VERCEL"):
+    REPORTS_DIR = Path("/tmp/reports")
+else:
+    REPORTS_DIR = ROOT_DIR / "reports"
 
 
 def _parse_alert_context(body: dict) -> AlertContext | None:
@@ -553,6 +566,8 @@ def api_check_malicious_bulk():
                 malicious.append(res)
 
     return jsonify({
+        "total_checked": len(ips),
+        "malicious_count": len(malicious),
         "malicious_ips": [r["ip"] for r in malicious], 
         "details": malicious
     })
