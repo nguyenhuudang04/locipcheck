@@ -7,70 +7,48 @@ import csv
 
 BATCH_API_URL = "http://ip-api.com/batch?fields=status,message,country,countryCode,city,isp,query"
 
-def is_private_ip(ip: str) -> bool:
-    """
-    Kiểm tra xem IP có thuộc dải Private / Reserved theo RFC không.
-    Bao gồm: RFC1918, Loopback, APIPA, CGNAT, Multicast, Reserved,
-    Broadcast, Documentation ranges và các dải đặc biệt khác.
-    """
-    private_patterns = [
-        # RFC 1918 - Private Networks
-        r"^10\.",                                        # 10.0.0.0/8
-        r"^172\.(1[6-9]|2[0-9]|3[0-1])\.",             # 172.16.0.0/12
-        r"^192\.168\.",                                  # 192.168.0.0/16
+import ipaddress
 
-        # Loopback
-        r"^127\.",                                       # 127.0.0.0/8
+_CGNAT_NET = ipaddress.ip_network("100.64.0.0/10")
 
-        # Link-Local / APIPA
-        r"^169\.254\.",                                  # 169.254.0.0/16
-
-        # This network
-        r"^0\.",                                         # 0.0.0.0/8
-
-        # Carrier-Grade NAT (CGNAT) - RFC 6598
-        r"^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.",   # 100.64.0.0/10
-
-        # Multicast - RFC 3171
-        r"^2(2[4-9]|3\d)\.",                            # 224.0.0.0/4
-
-        # Reserved / Broadcast - RFC 1112, RFC 919
-        r"^24[0-9]\.",                                   # 240.0.0.0/4
-        r"^25[0-5]\.",                                   # 255.x.x.x
-
-        # Documentation / TEST ranges - RFC 5737
-        r"^192\.0\.2\.",                                 # 192.0.2.0/24    (TEST-NET-1)
-        r"^198\.51\.100\.",                              # 198.51.100.0/24 (TEST-NET-2)
-        r"^203\.0\.113\.",                               # 203.0.113.0/24  (TEST-NET-3)
-
-        # Benchmark Testing - RFC 2544
-        r"^198\.1[89]\.",                                # 198.18.0.0/15
-
-        # IETF Protocol Assignments
-        r"^192\.0\.0\.",                                 # 192.0.0.0/24
-
-        # 6to4 Relay Anycast - RFC 3068
-        r"^192\.88\.99\.",                               # 192.88.99.0/24
-    ]
+def is_valid_ip(ip: str) -> bool:
+    """Kiểm tra địa chỉ IP hợp lệ (hỗ trợ cả IPv4 và IPv6)."""
     try:
-        # Validate octet ranges (mỗi octet phải từ 0-255)
-        octets = ip.split(".")
-        if len(octets) != 4:
-            return False
-        if not all(0 <= int(o) <= 255 for o in octets):
-            return True  # IP không hợp lệ → coi như private để bỏ qua
-    except ValueError:
-        return True  # Parse lỗi → coi như private để bỏ qua
-
-    return any(re.match(pat, ip) for pat in private_patterns)
-
-def _is_valid_ipv4(ip: str) -> bool:
-    """Kiểm tra định dạng và giá trị octet IPv4 hợp lệ (0-255)."""
-    try:
-        parts = ip.split(".")
-        return len(parts) == 4 and all(0 <= int(p) <= 255 for p in parts)
+        ipaddress.ip_address(str(ip).strip())
+        return True
     except (ValueError, AttributeError):
         return False
+
+def _is_valid_ipv4(ip: str) -> bool:
+    """Kiểm tra xem chuỗi có phải IPv4 hợp lệ không."""
+    try:
+        return ipaddress.ip_address(str(ip).strip()).version == 4
+    except (ValueError, AttributeError):
+        return False
+
+def is_private_ip(ip: str) -> bool:
+    """
+    Kiểm tra xem IP có thuộc dải Private / Loopback / Reserved / Link-local không.
+    Hỗ trợ đầy đủ cả IPv4 và IPv6:
+      - IPv4: 10.*, 172.16-31.*, 192.168.*, 127.*, 169.254.*, 100.64.* (CGNAT), v.v.
+      - IPv6: ::1 (loopback), fe80::* (link-local), fc00::/fd00:: (ULA private), ff00::* (multicast), ::, v.v.
+    """
+    try:
+        addr = ipaddress.ip_address(str(ip).strip())
+        if (
+            addr.is_private
+            or addr.is_loopback
+            or addr.is_reserved
+            or addr.is_link_local
+            or addr.is_multicast
+            or addr.is_unspecified
+        ):
+            return True
+        if addr.version == 4 and addr in _CGNAT_NET:
+            return True
+        return False
+    except (ValueError, AttributeError):
+        return True
 
 class IPCheckerApp(tk.Tk):
     def __init__(self):
@@ -149,16 +127,19 @@ class IPCheckerApp(tk.Tk):
 
     def parse_ips(self):
         raw = self.txt_ips.get("1.0", tk.END)
-        # Bắt địa chỉ IPv4
-        matches = re.findall(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", raw)
-        # Validate từng octet (0-255) để loại IP không hợp lệ như 999.999.999.999
-        valid = [ip for ip in matches if _is_valid_ipv4(ip)]
+        # Bắt địa chỉ IPv4 và IPv6 (tách theo khoảng trắng, dấu phẩy, ngoặc, v.v.)
+        tokens = re.split(r"[\s,;\"\'\(\)\[\]<>\{\}]+", raw)
+        valid = []
+        for tok in tokens:
+            tok = tok.strip(".,:; ")
+            if is_valid_ip(tok):
+                valid.append(tok)
         return list(dict.fromkeys(valid))  # Giữ thứ tự và loại bỏ trùng lặp
 
     def start_checking(self):
         ips = self.parse_ips()
         if not ips:
-            messagebox.showwarning("Cảnh báo", "Vui lòng nhập ít nhất một địa chỉ IPv4 hợp lệ.")
+            messagebox.showwarning("Cảnh báo", "Vui lòng nhập ít nhất một địa chỉ IP (IPv4 hoặc IPv6) hợp lệ.")
             return
 
         self.btn_check.config(state=tk.DISABLED)

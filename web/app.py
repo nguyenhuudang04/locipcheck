@@ -258,73 +258,57 @@ def api_history():
 
 
 # ── Geo IP Checker Routes ────────────────────────────────────────────────────
+import ipaddress
 import re
 import requests
 
-def is_private_ip(ip: str) -> bool:
-    """
-    Kiểm tra xem IP có thuộc dải Private / Reserved theo RFC không.
-    Bao gồm: RFC1918, Loopback, APIPA, CGNAT, Multicast, Reserved,
-    Broadcast, Documentation ranges và các dải đặc biệt khác.
-    """
-    private_patterns = [
-        # RFC 1918 - Private Networks
-        r"^10\.",                                        # 10.0.0.0/8
-        r"^172\.(1[6-9]|2[0-9]|3[0-1])\.",             # 172.16.0.0/12
-        r"^192\.168\.",                                  # 192.168.0.0/16
+_CGNAT_NET = ipaddress.ip_network("100.64.0.0/10")
 
-        # Loopback
-        r"^127\.",                                       # 127.0.0.0/8
-
-        # Link-Local / APIPA
-        r"^169\.254\.",                                  # 169.254.0.0/16
-
-        # This network
-        r"^0\.",                                         # 0.0.0.0/8
-
-        # Carrier-Grade NAT (CGNAT) - RFC 6598
-        r"^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.",   # 100.64.0.0/10
-
-        # Multicast - RFC 3171
-        r"^2(2[4-9]|3\d)\.",                            # 224.0.0.0/4
-
-        # Reserved / Broadcast - RFC 1112, RFC 919
-        r"^24[0-9]\.",                                   # 240.0.0.0/4
-        r"^25[0-5]\.",                                   # 255.x.x.x
-
-        # Documentation / TEST ranges - RFC 5737
-        r"^192\.0\.2\.",                                 # 192.0.2.0/24    (TEST-NET-1)
-        r"^198\.51\.100\.",                              # 198.51.100.0/24 (TEST-NET-2)
-        r"^203\.0\.113\.",                               # 203.0.113.0/24  (TEST-NET-3)
-
-        # Benchmark Testing - RFC 2544
-        r"^198\.1[89]\.",                                # 198.18.0.0/15
-
-        # IETF Protocol Assignments
-        r"^192\.0\.0\.",                                 # 192.0.0.0/24
-
-        # 6to4 Relay Anycast - RFC 3068
-        r"^192\.88\.99\.",                               # 192.88.99.0/24
-    ]
+def is_valid_ip(ip: str) -> bool:
+    """Kiểm tra địa chỉ IP hợp lệ (hỗ trợ cả IPv4 và IPv6)."""
     try:
-        # Validate octet ranges (mỗi octet phải từ 0-255)
-        octets = ip.split(".")
-        if len(octets) != 4:
-            return False
-        if not all(0 <= int(o) <= 255 for o in octets):
-            return True  # IP không hợp lệ → coi như private để bỏ qua
-    except ValueError:
-        return True  # Parse lỗi → coi như private để bỏ qua
-
-    return any(re.match(pat, ip) for pat in private_patterns)
-
-def _is_valid_ipv4(ip: str) -> bool:
-    """Kiểm tra định dạng và giá trị octet IPv4 hợp lệ (0-255)."""
-    try:
-        parts = ip.split(".")
-        return len(parts) == 4 and all(0 <= int(p) <= 255 for p in parts)
+        ipaddress.ip_address(str(ip).strip())
+        return True
     except (ValueError, AttributeError):
         return False
+
+def _is_valid_ipv4(ip: str) -> bool:
+    """Kiểm tra xem chuỗi có phải IPv4 hợp lệ không."""
+    try:
+        return ipaddress.ip_address(str(ip).strip()).version == 4
+    except (ValueError, AttributeError):
+        return False
+
+def _is_valid_ipv6(ip: str) -> bool:
+    """Kiểm tra xem chuỗi có phải IPv6 hợp lệ không."""
+    try:
+        return ipaddress.ip_address(str(ip).strip()).version == 6
+    except (ValueError, AttributeError):
+        return False
+
+def is_private_ip(ip: str) -> bool:
+    """
+    Kiểm tra xem IP có thuộc dải Private / Loopback / Reserved / Link-local không.
+    Hỗ trợ đầy đủ cả IPv4 và IPv6:
+      - IPv4: 10.*, 172.16-31.*, 192.168.*, 127.*, 169.254.*, 100.64.* (CGNAT), v.v.
+      - IPv6: ::1 (loopback), fe80::* (link-local), fc00::/fd00:: (ULA private), ff00::* (multicast), ::, v.v.
+    """
+    try:
+        addr = ipaddress.ip_address(str(ip).strip())
+        if (
+            addr.is_private
+            or addr.is_loopback
+            or addr.is_reserved
+            or addr.is_link_local
+            or addr.is_multicast
+            or addr.is_unspecified
+        ):
+            return True
+        if addr.version == 4 and addr in _CGNAT_NET:
+            return True
+        return False
+    except (ValueError, AttributeError):
+        return True
 
 @app.route("/geo")
 def geo_checker():
@@ -337,15 +321,12 @@ def api_geo():
     if not isinstance(ips, list):
         return jsonify({"error": "ips must be a list"}), 400
 
-    # Lọc bỏ giá trị rỗng, kiểm tra định dạng VÀ giá trị octet IPv4 hợp lệ
+    # Lọc bỏ giá trị rỗng, kiểm tra IP hợp lệ (hỗ trợ cả IPv4 và IPv6)
     valid_ips = []
     for ip in ips:
         ip = str(ip).strip()
-        # Kiểm tra regex format trước
-        if re.match(r"^(?:\d{1,3}\.){3}\d{1,3}$", ip):
-            # Validate từng octet (0-255) để loại 999.999.999.999
-            if _is_valid_ipv4(ip):
-                valid_ips.append(ip)
+        if is_valid_ip(ip):
+            valid_ips.append(ip)
 
     # Loại bỏ trùng lặp giữ nguyên thứ tự
     seen_ips = set()
@@ -511,15 +492,42 @@ def api_ocr():
         ocr_config = r"--oem 3 --psm 6"
         raw_text = pytesseract.image_to_string(img, lang="eng", config=ocr_config)
 
-        # Trích xuất IPv4 từ text OCR
-        ip_pattern = re.compile(r"\b(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\b")
+        # Trích xuất IP (cả IPv4 và IPv6) từ text OCR
         found_ips = []
         seen = set()
-        for m in ip_pattern.finditer(raw_text):
+
+        # 1. Trích xuất IPv4
+        ip4_pattern = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+        for m in ip4_pattern.finditer(raw_text):
             ip = m.group(0)
-            if ip not in seen and _is_valid_ipv4(ip):
+            if ip not in seen and is_valid_ip(ip):
                 found_ips.append(ip)
                 seen.add(ip)
+
+        # 2. Trích xuất IPv6
+        ip6_pattern = re.compile(
+            r"(?<![0-9a-fA-F:])("
+            r"(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|"
+            r"(?:[0-9a-fA-F]{1,4}:){1,7}:|"
+            r":(?::[0-9a-fA-F]{1,4}){1,7}|"
+            r"(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|"
+            r"(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}|"
+            r"(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}|"
+            r"(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}|"
+            r"(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}|"
+            r"[0-9a-fA-F]{1,4}:(?::[0-9a-fA-F]{1,4}){1,6}|"
+            r"::1|::"
+            r")(?![0-9a-fA-F:])"
+        )
+        for m in ip6_pattern.finditer(raw_text):
+            cand = m.group(0)
+            if cand not in seen and is_valid_ip(cand):
+                try:
+                    if ipaddress.ip_address(cand).version == 6:
+                        found_ips.append(cand)
+                        seen.add(cand)
+                except ValueError:
+                    pass
 
         return jsonify({
             "ips": found_ips,

@@ -277,8 +277,8 @@
 
 <div class="geo-container">
   <div class="geo-header">
-    <h1>IP Geo Checker</h1>
-    <p>Kiểm tra nhanh danh sách IP (Phân loại: Nội bộ, Việt Nam, Nước Ngoài) hỗ trợ điều tra truy cập bất thường.</p>
+    <h1>IP Geo Checker (IPv4 & IPv6)</h1>
+    <p>Kiểm tra danh sách IP IPv4/IPv6 — Tự động loại bỏ IP Việt Nam và IP nội bộ, chỉ lấy IP NƯỚC NGOÀI để kiểm tra độc hại.</p>
   </div>
   
   <div class="geo-input-card">
@@ -327,13 +327,16 @@
       </div>
     </div>
 
-    <textarea class="geo-textarea" id="ipsInput" placeholder="Nhập danh sách IP (mỗi dòng 1 IP hoặc phân cách bởi dấu phẩy/khoảng trắng)
+    <textarea class="geo-textarea" id="ipsInput" placeholder="Nhập danh sách IP IPv4 hoặc IPv6 (mỗi dòng 1 IP hoặc phân cách bởi dấu phẩy/khoảng trắng)
 
 Ví dụ:
 8.8.8.8
-1.1.1.1
+2001:4860:4860::8888
+2606:4700:4700::1111
+2402:800::1
 113.161.72.1
-192.168.1.1"></textarea>
+192.168.1.1
+::1"></textarea>
     
     <div class="geo-controls">
       <button class="geo-btn geo-btn-primary" id="btnCheck" onclick="checkIps()">
@@ -497,9 +500,10 @@ let currentMaliciousIps = [];
 let currentMaliciousDetails = [];
 let tesseractWorker = null; // Worker dung lai de nhanh hon lan sau
 
-// ─── Validate IPv4 ───────────────────────────────────────────────────────────
+// ─── Validate IP (IPv4 & IPv6) ───────────────────────────────────────────────
 function isValidIPv4(ip) {
-  const parts = ip.split('.');
+  if (!ip || typeof ip !== 'string') return false;
+  const parts = ip.trim().split('.');
   if (parts.length !== 4) return false;
   return parts.every(function(p) {
     const n = parseInt(p, 10);
@@ -507,12 +511,42 @@ function isValidIPv4(ip) {
   });
 }
 
-// ─── Trich xuat IP tu text (Noi long regex de bat IP co khoang trang/dau phay do OCR loi) ───
+function isValidIPv6(ip) {
+  if (!ip || typeof ip !== 'string') return false;
+  ip = ip.trim();
+  if (!ip.includes(':')) return false;
+  if ((ip.match(/::/g) || []).length > 1) return false;
+  const ipv6Regex = /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|:((:[0-9a-fA-F]{1,4}){1,7}|:)|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6}))$/;
+  return ipv6Regex.test(ip);
+}
+
+function isValidIP(ip) {
+  return isValidIPv4(ip) || isValidIPv6(ip);
+}
+
+// ─── Trích xuất IP từ text (Hỗ trợ cả IPv4 & IPv6, nới lỏng lỗi khoảng trắng OCR) ───
 function extractIPsFromText(text) {
-  console.log("Raw OCR Text:", text); // Debug
-  var matches = text.match(/\b\d{1,3}[., ]+\d{1,3}[., ]+\d{1,3}[., ]+\d{1,3}\b/g) || [];
-  var normalized = matches.map(function(m) { return m.replace(/[., ]+/g, '.'); });
-  return [...new Set(normalized.filter(isValidIPv4))];
+  if (!text) return [];
+  console.log("Raw text to extract IPs:", text);
+  var validList = [];
+
+  // 1. Tách token theo các dấu phân cách thông dụng
+  var rawTokens = text.split(/[\s,;\"\'\(\)\[\]<>\{\}]+/);
+  rawTokens.forEach(function(tok) {
+    tok = tok.replace(/^[\.,:;]+|[\.,:;]+$/g, '').trim();
+    if (isValidIP(tok)) {
+      validList.push(tok);
+    }
+  });
+
+  // 2. Nới lỏng định dạng IPv4 nếu OCR nhận diện nhầm dấu chấm thành khoảng trắng hoặc dấu phẩy
+  var v4Matches = text.match(/\b\d{1,3}[., ]+\d{1,3}[., ]+\d{1,3}[., ]+\d{1,3}\b/g) || [];
+  v4Matches.forEach(function(m) {
+    var norm = m.replace(/[., ]+/g, '.');
+    if (isValidIPv4(norm)) validList.push(norm);
+  });
+
+  return [...new Set(validList)];
 }
 
 // ─── Drag & Drop ─────────────────────────────────────────────────────────────
@@ -713,18 +747,16 @@ function fallbackCopy(text, successMsg) {
 // ─── Copy danh sách IP nhập vào ──────────────────────────────────────────────
 function copyIpsList() {
   var rawInput = document.getElementById('ipsInput').value;
-  var matches = rawInput.match(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g) || [];
-  var ips = [...new Set(matches.filter(isValidIPv4))];
-  if (ips.length === 0) { alert('Không có IP nào để copy.'); return; }
+  var ips = extractIPsFromText(rawInput);
+  if (ips.length === 0) { alert('Không có IP (IPv4 hoặc IPv6) nào để copy.'); return; }
   copyToClipboard(ips.join('\n'), 'Đã copy ' + ips.length + ' IP vào Clipboard!');
 }
 
 // ─── Kiểm tra IP (gọi /api/geo) ──────────────────────────────────────────────
 async function checkIps() {
   var rawInput = document.getElementById('ipsInput').value;
-  var matches  = rawInput.match(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g) || [];
-  var ips = [...new Set(matches.filter(isValidIPv4))];
-  if (ips.length === 0) { alert('Vui lòng nhập ít nhất một địa chỉ IPv4 hợp lệ.'); return; }
+  var ips = extractIPsFromText(rawInput);
+  if (ips.length === 0) { alert('Vui lòng nhập ít nhất một địa chỉ IP (IPv4 hoặc IPv6) hợp lệ.'); return; }
 
   // Reset kết quả độc hại trước đó khi chạy kiểm tra IP mới
   currentMaliciousIps = [];
